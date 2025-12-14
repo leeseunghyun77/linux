@@ -208,7 +208,7 @@ int main(){
 
         maybe_start_next();
 
-        // Scheduling loop
+        // 스케줄링
         while(!all_done()){
             pause();
             if(tick_flag){
@@ -218,7 +218,7 @@ int main(){
             }
         }
 
-        // Metrics aggregation
+        // 성능 지표 계산산
         int total_wait=0, total_resp=0, total_turn=0;
         long long total_running_ticks=0, total_io_ticks=0;
 
@@ -237,15 +237,11 @@ int main(){
         double avg_resp = (double)total_resp / NPROC;
         double avg_turn = (double)total_turn / NPROC;
 
-        // CPU utilization: fraction of time CPU executed a process
-        // total system time = sys_tick ticks
         double cpu_util = (sys_tick>0) ? (100.0 * (double)total_running_ticks / (double)sys_tick) : 0.0;
 
-        // I/O waiting ratio: fraction of process-time spent in I/O wait
-        // normalize by NPROC * sys_tick to get average per-process fraction
         double io_wait_ratio = (NPROC>0 && sys_tick>0) ? (100.0 * (double)total_io_ticks / (double)(NPROC * sys_tick)) : 0.0;
 
-        // Per-process metrics
+        // 프로세스별 성능 지표표
         printf("\n=== 프로세스별 지표 ===\n");
         for(int i=0;i<NPROC;i++){
             int resp = (pcbs[i].first_run_tick>=0) ? (pcbs[i].first_run_tick - pcbs[i].arrival_tick) : 0;
@@ -262,7 +258,7 @@ int main(){
                    io_ratio);
         }
 
-        // Averages
+        // 평균 지표
         printf("\n=== 평균 지표 ===\n");
         printf("평균 대기 시간: %.2f ticks\n", avg_wait);
         printf("평균 응답 시간: %.2f ticks\n", avg_resp);
@@ -275,5 +271,6 @@ int main(){
     }
     return 0;
 }
+
 
 
