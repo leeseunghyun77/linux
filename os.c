@@ -1,5 +1,3 @@
-// gcc -O2 -Wall -Wextra os_rr_wait.c -o os_rr_wait
-// ./os_rr_wait
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
@@ -195,4 +193,5 @@ int main(){
         sleep(2); // 잠깐 쉬고 다시 반복
     }
     return 0;
+
 }
