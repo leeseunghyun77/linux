@@ -1,5 +1,3 @@
-// gcc -O2 -Wall -Wextra os_rr_metrics.c -o os_rr_metrics
-// ./os_rr_metrics
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
@@ -280,3 +278,4 @@ int main(){
     }
     return 0;
 }
+
