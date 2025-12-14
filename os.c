@@ -22,13 +22,13 @@ typedef struct {
     state_t state;
     int sleep_ticks;
 
-    // Metrics
-    int waiting_time;          // READY 상태에서 대기한 총 tick
-    int running_time;          // RUNNING 상태에서 실행한 총 tick
-    int io_wait_time;          // SLEEP 상태(I/O 대기) 총 tick
-    int arrival_tick;          // READY 큐에 처음 들어온 tick
-    int first_run_tick;        // 처음 RUNNING이 된 tick (응답시간 측정용)
-    int completion_tick;       // DONE 시점의 tick
+    // 성능 지표
+    int waiting_time;          // READY 상태에서 대기한 총 시간
+    int running_time;          // RUNNING 상태에서 실행한 총 시간
+    int io_wait_time;          // SLEEP 상태(I/O 대기) 총 시간
+    int arrival_tick;          // READY 큐에 처음 들어온 시간
+    int first_run_tick;        // 처음 RUNNING이 된 시간 (응답시간 측정용)
+    int completion_tick;       // DONE 시점의 시간
     int responded;             // 처음 실행 여부 플래그
 } pcb_t;
 
@@ -39,10 +39,10 @@ volatile sig_atomic_t tick_flag;
 volatile sig_atomic_t last_io_pid;
 volatile sig_atomic_t child_exit_flag;
 
-// System time (ticks)
+// 시스템 시간
 int sys_tick = 0;
 
-// Queue management
+// 큐 관리
 void enqueue_ready(int idx){
     ready_queue[rq_tail]=idx;
     rq_tail=(rq_tail+1)%NPROC;
@@ -56,7 +56,7 @@ int dequeue_ready(){
     return idx;
 }
 
-// Child: waits for signals (burst is simulated in parent)
+// 자식 프로세스
 void child_loop(int idx){
     srand(time(NULL)^getpid());
     sigset_t set; sigemptyset(&set);
@@ -66,7 +66,7 @@ void child_loop(int idx){
         int sig; sigwait(&set,&sig);
         if(sig==SIGTERM) _exit(0);
         if(sig==SIGUSR1){
-            // No work; parent simulates execution and I/O decisions
+            // 부모가 스케줄링
         }
     }
 }
@@ -108,7 +108,7 @@ int all_done(){
 }
 
 void schedule_tick(){
-    // 1) Account per-state time for metrics before transitions
+    // 성능 지표 수정
     for(int i=0;i<NPROC;i++){
         if(pcbs[i].state==ST_READY) pcbs[i].waiting_time++;
         else if(pcbs[i].state==ST_SLEEP) pcbs[i].io_wait_time++;
@@ -117,7 +117,7 @@ void schedule_tick(){
         pcbs[running_idx].running_time++;
     }
 
-    // 2) Process SLEEP timers
+    // I/O 발생 시 대기 시간
     for(int i=0;i<NPROC;i++){
         if(pcbs[i].state==ST_SLEEP){
             if(--pcbs[i].sleep_ticks<=0){
@@ -127,17 +127,17 @@ void schedule_tick(){
         }
     }
 
-    // 3) Execute running process for one tick
+    // 한 틱마다 프로세스 실행
     maybe_start_next();
     if(running_idx!=-1){
         int idx=running_idx;
         deliver_tick(idx);
 
-        // Decrease burst and quantum
+        // cpu버스트, 퀀텀 감소
         if(pcbs[idx].cpu_burst>0) pcbs[idx].cpu_burst--;
         if(pcbs[idx].quantum_remaining>0) pcbs[idx].quantum_remaining--;
 
-        // Burst completed: decide I/O or DONE
+        // cpu 버스트 0일 때 I/O 또는 종료료
         if(pcbs[idx].cpu_burst==0){
             int r = rand()%100;
             if(r < IO_PROB){
@@ -145,11 +145,11 @@ void schedule_tick(){
                 pcbs[idx].sleep_ticks=1+rand()%5;
             } else {
                 pcbs[idx].state=ST_DONE;
-                pcbs[idx].completion_tick=sys_tick+1; // completes at end of this tick
+                pcbs[idx].completion_tick=sys_tick+1;
             }
             running_idx=-1;
         }
-        // Quantum expired but burst remains: preempt
+        // 퀀텀이 0이고 cpu 버스트 0이 아닐 때
         else if(pcbs[idx].quantum_remaining==0){
             pcbs[idx].state=ST_READY;
             enqueue_ready(idx);
@@ -157,7 +157,6 @@ void schedule_tick(){
         }
     }
 
-    // 4) Advance system time and possibly start next
     sys_tick++;
     maybe_start_next();
 }
@@ -182,27 +181,25 @@ void print_state_line(){
 /* Main */
 int main(){
     srand(time(NULL));
-    setup_signals();
-
-    while(1){ // repeat experiments
-        // Reset system tick and queues
+      srand(time(NULL)    while(1){ // 무한 반복
+        // 초기화
         sys_tick=0;
         rq_head=rq_tail=rq_count=0;
         running_idx=-1;
         tick_flag=0; last_io_pid=0; child_exit_flag=0;
 
-        // Spawn children and init PCBs
+        // 자식 프로세스 생성 및 초기화
         for(int i=0;i<NPROC;i++){
             pid_t pid=fork();
             if(pid==0){child_loop(i); return 0;}
             pcbs[i].pid=pid; pcbs[i].idx=i;
-            pcbs[i].cpu_burst=1+rand()%10;          // initial burst
+            pcbs[i].cpu_burst=1+rand()%10;          
             pcbs[i].quantum_remaining=QUANTUM;
             pcbs[i].state=ST_READY; pcbs[i].sleep_ticks=0;
             pcbs[i].waiting_time=0;
             pcbs[i].running_time=0;
             pcbs[i].io_wait_time=0;
-            pcbs[i].arrival_tick=sys_tick;          // enters ready at creation
+            pcbs[i].arrival_tick=sys_tick;          
             pcbs[i].first_run_tick=-1;
             pcbs[i].completion_tick=-1;
             pcbs[i].responded=0;
@@ -278,4 +275,5 @@ int main(){
     }
     return 0;
 }
+
 
